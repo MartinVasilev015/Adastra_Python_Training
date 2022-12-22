@@ -23,7 +23,7 @@ class Temperature:
         return str(self.temp) + self.degree_symbol
 
 
-def Convert_To_Fahrenheit(temp):
+def convert_to_fahrenheit(temp):
     try:
         temp_float = float(temp)
     except:
