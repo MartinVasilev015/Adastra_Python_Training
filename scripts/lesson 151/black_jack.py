@@ -1,3 +1,10 @@
+'''
+-define a BlackJackCard class and a Deck class 
+so that the following code (which draws 3 cards) will work: 
+    d = Deck() 
+    h = Hand_Lazy(d.pop(), d.pop(), d.pop()) 
+    print(h.total) 
+'''
 from enum import Enum
 import random
 
