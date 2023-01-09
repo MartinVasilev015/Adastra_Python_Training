@@ -11,6 +11,7 @@
 -The Simulation source is infinite - it should always have a new message, if asked. 
 -The File source is finite, it ends when the whole file is read. 
 '''
+from abc import ABC, abstractmethod
 import datetime
 import json
 import random
@@ -31,19 +32,56 @@ class Message:
         self.ts = str(ts)
 
 
+def to_json(message):
+    x = {
+        "key": message.key,
+        "value": message.value,
+        "ts": str(message.ts)
+    }
+    return json.dumps(x)
+
+class IDataSinkFactory (ABC):
+    @abstractmethod
+    def post_data(self, data):
+        pass
+
+
+class PosgreDataSinkFactory (IDataSinkFactory):
+    def post_data(self, data):
+        '''
+        try:
+            with psycopg2.connect(
+                database = db_name, 
+                user = user, 
+                password = password,
+                host=host,
+                port= port) as conn:
+
+                with conn.cursor() as cursor:
+                    postgres_insert_query = """ INSERT INTO Messsages (KEY, VALUE, TS) VALUES (%s,%s,%s)"""
+
+                    for i in self.messages:
+                        record_to_insert = (i.key, i.value, i.ts)
+                        cursor.execute(postgres_insert_query, record_to_insert)
+                    conn.commit()
+                    
+        except Exception as e:
+            print("something went wrong")
+        '''
+        pass
+
+
+class ConsoleDataSinkFactory (IDataSinkFactory):
+    def post_data(self, data):
+        for item in data:
+            item_json = to_json(item)
+            print(item_json)
+
+
 class MessageManager:
 
     def __init__(self):
         self.messages = []
-
-    def to_json(self, message):
-        x = {
-            "key": message.key,
-            "value": message.value,
-            "ts": str(message.ts)
-        }
-        return json.dumps(x)
-
 
     def get_random_message(self, count):
 
@@ -78,32 +116,10 @@ class MessageManager:
 
 
     def send_message_to_console(self):
-        for item in self.messages:
-            item_json = self.to_json(item)
-            print(item_json)
-
+        ConsoleDataSinkFactory.post_data(ConsoleDataSinkFactory(), self.messages)
 
     def send_message_to_postgresql(self):
-        '''
-        try:
-            with psycopg2.connect(
-                database = db_name, 
-                user = user, 
-                password = password,
-                host=host,
-                port= port) as conn:
-
-                with conn.cursor() as cursor:
-                    postgres_insert_query = """ INSERT INTO Messsages (KEY, VALUE, TS) VALUES (%s,%s,%s)"""
-
-                    for i in self.messages:
-                        record_to_insert = (i.key, i.value, i.ts)
-                        cursor.execute(postgres_insert_query, record_to_insert)
-                    conn.commit()
-                    
-        except Exception as e:
-            print("something went wrong")
-        '''
+        PosgreDataSinkFactory.post_data(PosgreDataSinkFactory(), self.messages)        
 
 
 test = MessageManager()
