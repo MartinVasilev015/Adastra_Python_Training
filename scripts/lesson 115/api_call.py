@@ -14,93 +14,106 @@
 '''
 import json
 import websocket
-import time
-import threading
+from time import sleep
+from threading import Thread
 import datetime
 
 class BTCReport:
     
     price = 0.0
-    timespamp = 0
+    timestamp : datetime.datetime = ''
     volume = 0.0
 
-    def __init__(self, price: float, timespamp: int, volume: float):
-        self.timespamp = timespamp
+    def __init__(self, price: float, timestamp: int, volume: float):
+        self.timestamp = datetime.datetime.fromtimestamp(timestamp/1000.0)
         self.price = price
         self.volume = volume
 
     def to_string(self):
-        return (str(datetime.datetime.fromtimestamp(self.timespamp/1000.0)) + " price:" + 
-            str("%.2f" % self.price) + " volume:" + str("%.7f" % self.volume))  
+        return f'{self.timestamp} price:{"%.2f" % self.price} volume:{"%.7f" % self.volume}'  
 
-class MessageManager:
+def get_vwap_for_minute(timestamp, msg_list):
+    a = 0.0
+    b = 0.0
+    
+    for i in msg_list:
+        a += (i.volume * i.price)
+        b += i.volume    
 
-    messages_result = []
+    return timestamp, a/b
 
-    def on_message(self, ws, message):
-        messages = json.loads(message)['data']
-            
-        for i in messages:
-            if i == 'data':
-                continue
+def get_data_for_a_minute(msg_list: list):
 
-            var = BTCReport(i['p'], i['t'], i['v'])
-            self.messages_result.append(var)
+    result = []
+    timestamp = ''
 
-    def on_error(ws: any, error):
-        print(error)
+    old_list = msg_list
 
-    def on_close(self, a, b):
+    old_list.sort(key = lambda x: x.timestamp)
+    
+    mins = old_list[0].timestamp.minute
+
+    for i in old_list:
+        if i.timestamp.minute == mins:
+            result.append(i)
+            if timestamp == '':
+                timestamp = i.timestamp.strftime("%Y-%m-%d %H:%M")
+            msg_list.remove(i)
+    return timestamp, result 
+
+reports = []
+
+def print_vwap():
+
+    while True:
+
+        #waiting for a minute and 10 seconds
+        sleep(70)
+        data = get_data_for_a_minute(reports)
+
+        result = get_vwap_for_minute(data[0], data[1])
+
         print("")
+        
+        #breakpoint here for testing purposes 
+        print(f'---------------------------{result[0]} - VWAP = {result[1]}------------------------')
+        continue
 
-    def on_open(self, ws):
-        ws.send('{"type":"subscribe","symbol":"BINANCE:BTCUSDT"}')
 
+def on_message(ws, message):
+    
+    messages = json.loads(message)['data']
+    for i in messages:
+        if i == 'data':
+            continue
+
+        report = BTCReport(i['p'], i['t'], i['v'])
+
+        reports.append(report)
+
+        print(report.to_string())
+
+def on_error(ws, error):
+    print(error)
+
+def on_close(ws):
+    print("### closed ###")
+
+def on_open(ws):
+    ws.send('{"type":"subscribe","symbol":"BINANCE:BTCUSDT"}')
+
+def ws_start():
     websocket.enableTrace(False)
     ws = websocket.WebSocketApp("wss://ws.finnhub.io?token=cehgbjqad3idq68ps0m0cehgbjqad3idq68ps0mg",
                                 on_message = on_message,
                                 on_error = on_error,
                                 on_close = on_close)
+    ws.on_open = on_open
+    ws.on_message = on_message
+    ws.run_forever()
 
-    def get_messages(self):
-        self.ws.on_open = self.on_open
-        self.ws.on_message = self.on_message
-        self.ws.run_forever()
+thread1 = Thread(target = ws_start)
+thread2 = Thread(target = print_vwap)
 
-    def start(self):
-        self.timer = threading.Timer(1.0, self.get_messages)
-        self.timer.start()
-    
-    def stop(self):
-        self.ws.keep_running = False
-        self.timer.cancel()
-
-    def print_results(self):
-        for i in self.messages_result:
-            print(i.to_string())
-
-    def get_vwac(self):
-        
-        a = 0.0
-        b = 0.0
-
-        for i in self.messages_result:
-
-            a += (i.volume * i.price)
-            b += i.volume    
-
-        return a/b
-
-
-mm = MessageManager()
-
-mm.start()
-time.sleep(5)
-#time.sleep(60)
-mm.stop()
-
-print("--------------")
-mm.print_results()
-
-print("-----VWAP-----")
-print(mm.get_vwac())
+thread1.start()
+thread2.start()
