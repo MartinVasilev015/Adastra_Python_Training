@@ -87,7 +87,10 @@ class MessageManager:
 
         for i in range(count):
             characters = string.ascii_letters + string.digits
-            key = ''.join(random.choice(characters) for i in range(8))
+
+            upper_limit = random.randint(15, 20)
+
+            key = ''.join(random.choice(characters) for i in range(upper_limit))
 
             value = round(random.uniform(0, 100), 2)
 
@@ -125,6 +128,6 @@ class MessageManager:
 test = MessageManager()
 
 test.get_random_message(1)
-test.get_message_from_file(Path("C:/Users/martin.vasilev/Downloads/Python Course/git repo/scripts/lesson 150"))
+test.get_message_from_file(Path("C:/Users/martin.vasilev/Downloads/Python Course/git repo/scripts/lesson 150/test_json.json"))
 test.get_random_message(2)
 test.send_message_to_console()
