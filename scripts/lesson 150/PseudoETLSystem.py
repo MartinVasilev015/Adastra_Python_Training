@@ -125,6 +125,6 @@ class MessageManager:
 test = MessageManager()
 
 test.get_random_message(1)
-test.get_message_from_file(Path("C:/Users/martin.vasilev/Downloads/Python Course/test_json.json"))
+test.get_message_from_file(Path("C:/Users/martin.vasilev/Downloads/Python Course/git repo/scripts/lesson 150"))
 test.get_random_message(2)
 test.send_message_to_console()

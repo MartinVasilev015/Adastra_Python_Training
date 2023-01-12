@@ -71,7 +71,7 @@ for i in range(len(temps)):
         comma = ''
 
     if(temps[i].degree_symbol == 'C'):
-        temps[i].temp = round(Convert_To_Fahrenheit(temps[i].temp), 1)
+        temps[i].temp = round(convert_to_fahrenheit(temps[i].temp), 1)
         temps[i].degree_symbol = 'F'
 
     f.write(temps[i].to_string().strip() + comma + '\n')
