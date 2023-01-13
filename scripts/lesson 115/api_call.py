@@ -42,26 +42,25 @@ def get_vwap_for_minute(timestamp, msg_list):
 
     return timestamp, a/b
 
-def get_data_for_a_minute(msg_list: list):
+reports = []
+
+def get_data_for_a_minute():
 
     result = []
     timestamp = ''
 
-    old_list = msg_list
-
-    old_list.sort(key = lambda x: x.timestamp)
+    reports.sort(key = lambda x: x.timestamp)
     
-    mins = old_list[0].timestamp.minute
+    mins = reports[0].timestamp.minute
 
-    for i in old_list:
+    for i in reports[:]:
         if i.timestamp.minute == mins:
             result.append(i)
             if timestamp == '':
                 timestamp = i.timestamp.strftime("%Y-%m-%d %H:%M")
-            msg_list.remove(i)
+            reports.remove(i)
     return timestamp, result 
 
-reports = []
 
 def print_vwap():
 
@@ -69,7 +68,7 @@ def print_vwap():
 
         #waiting for a minute and 10 seconds
         sleep(70)
-        data = get_data_for_a_minute(reports)
+        data = get_data_for_a_minute()
 
         result = get_vwap_for_minute(data[0], data[1])
 
@@ -77,6 +76,7 @@ def print_vwap():
         
         #breakpoint here for testing purposes 
         print(f'---------------------------{result[0]} - VWAP = {result[1]}------------------------')
+        print("")
         continue
 
 
@@ -92,6 +92,7 @@ def on_message(ws, message):
         reports.append(report)
 
         print(report.to_string())
+        print(len(reports))
 
 def on_error(ws, error):
     print(error)
