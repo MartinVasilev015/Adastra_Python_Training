@@ -92,7 +92,6 @@ def on_message(ws, message):
         reports.append(report)
 
         print(report.to_string())
-        print(len(reports))
 
 def on_error(ws, error):
     print(error)
