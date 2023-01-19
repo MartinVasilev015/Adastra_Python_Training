@@ -28,7 +28,8 @@ class Deck:
     cards = []
     
     def __init__(self) -> None:
-        pass
+        self.set_deck()
+        self.suffle_deck()
 
     def set_deck(self):
         for i in Suit:
@@ -45,6 +46,9 @@ class Deck:
 
     def suffle_deck(self):
         random.shuffle(self.cards)
+
+    def pop(self):
+        return self.cards.pop(0)
 
 
 class Hand:
@@ -85,21 +89,12 @@ class Hand_Lazy(Hand):
         self._cards.pop(-1) 
 
 
-deck = Deck()
-deck.set_deck()
-deck.suffle_deck()
+d = Deck()
 
-#for debugging/testing purposes
-#for i in deck.cards:
-#    print(i.suit + i.power)
+h = Hand_Lazy(d.pop(), d.pop(), d.pop())
 
-card1 = deck.cards.pop(0)
-card2 = deck.cards.pop(1)
-card3 = deck.cards.pop(2)
+print(h.total)
 
-h = Hand_Lazy(card1, card2, card3)
-
+#for debugging/testing:
 for c in h.cards:
     print(c.suit + c.power)
-
-print("total: " + str(h.total)) 
