@@ -33,9 +33,11 @@ def convert_to_fahrenheit(temp):
 
 
 print("Enter path to file:")
-path_to_file = input().replace('\\', '/')
+input = input()
+
 
 try:
+    path_to_file = input.replace('\\', '/')
     file = open(path_to_file)
 except:
     print('Invalid path')
@@ -47,7 +49,8 @@ for i in range(len(path) - 1):
     new_path += path[i] + '/'
 
 raw_data = str(file.read()).replace(',', '').split('\n')
-file.close()
+if not file.closed:
+    file.close()
 
 temps = []
 
@@ -63,18 +66,16 @@ for i in raw_data:
         print("Invalid Data at row ")
         continue
 
-f = open(new_path + "Result.txt", "w")
+with open(new_path + "Result.txt", "w") as f:
+    for i in range(len(temps)):
+        comma = ','
+        if i == len(temps) - 1:
+            comma = ''
 
-for i in range(len(temps)):
-    comma = ','
-    if i == len(temps) - 1:
-        comma = ''
+        if(temps[i].degree_symbol == 'C'):
+            temps[i].temp = round(convert_to_fahrenheit(temps[i].temp), 1)
+            temps[i].degree_symbol = 'F'
 
-    if(temps[i].degree_symbol == 'C'):
-        temps[i].temp = round(convert_to_fahrenheit(temps[i].temp), 1)
-        temps[i].degree_symbol = 'F'
-
-    f.write(temps[i].to_string().strip() + comma + '\n')
-
+        f.write(temps[i].to_string().strip() + comma + '\n')
 print("Done")
-f.close()
+
