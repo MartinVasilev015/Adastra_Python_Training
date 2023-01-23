@@ -11,14 +11,11 @@
 -The Simulation source is infinite - it should always have a new message, if asked. 
 -The File source is finite, it ends when the whole file is read. 
 '''
-from abc import ABC, abstractmethod
 import datetime
 import json
 import random
 import string
-import json
 from types import SimpleNamespace
-from pathlib import Path
 
 class Message:
 
@@ -32,102 +29,109 @@ class Message:
         self.ts = str(ts)
 
 
-def to_json(message):
-    x = {
-        "key": message.key,
-        "value": message.value,
-        "ts": str(message.ts)
-    }
-    return json.dumps(x)
-
-class IDataSinkFactory (ABC):
-    @abstractmethod
-    def post_data(self, data):
-        pass
+    def to_json(self):
+        x = {
+            "key": self.key,
+            "value": self.value,
+            "ts": str(self.ts)
+        }
+        return json.dumps(x)
 
 
-class PosgreDataSinkFactory (IDataSinkFactory):
-    def post_data(self, data):
-        '''
-        try:
-            with psycopg2.connect(
-                database = db_name, 
-                user = user, 
-                password = password,
-                host=host,
-                port= port) as conn:
+class SourceFactory:
 
-                with conn.cursor() as cursor:
-                    postgres_insert_query = """ INSERT INTO Messsages (KEY, VALUE, TS) VALUES (%s,%s,%s)"""
+    def get_source(self, source_type):
+        results = []
 
-                    for i in self.messages:
-                        record_to_insert = (i.key, i.value, i.ts)
-                        cursor.execute(postgres_insert_query, record_to_insert)
-                    conn.commit()
-                    
-        except Exception as e:
-            print("something went wrong")
-        '''
-        pass
+        if source_type == 'Simulation':
 
+            msg_num = random.randint(1, 5)
 
-class ConsoleDataSinkFactory (IDataSinkFactory):
-    def post_data(self, data):
-        for item in data:
-            item_json = to_json(item)
-            print(item_json)
+            for i in range(msg_num):
+                characters = string.ascii_letters + string.digits
 
+                upper_limit = random.randint(15, 20)
 
-class MessageManager:
+                key = ''.join(random.choice(characters) for j in range(upper_limit))
 
-    def __init__(self):
-        self.messages = []
+                value = round(random.uniform(0, 100), 2)
 
-    def get_random_message(self, count):
+                ts = datetime.datetime.now()
 
-        for i in range(count):
-            characters = string.ascii_letters + string.digits
+                results.append(Message(key, value, ts))
 
-            upper_limit = random.randint(15, 20)
+        elif source_type == 'File':
+            try:
+                print("Enter Path:")
 
-            key = ''.join(random.choice(characters) for i in range(upper_limit))
+                path = input().replace('\\', '/')
 
-            value = round(random.uniform(0, 100), 2)
+                with open(path) as file:
+                    file_text = file.read().replace('\n', '').replace(' ', '').replace('}{', '},{').replace('},', '}},')
 
-            ts = datetime.datetime.now()
-            self.messages.append(Message(key, value, ts))
-            i += 1
+                    if file_text[0] == '[' and file_text[len(file_text)- 1] == ']':
+                        file_text = file_text.replace('[', '').replace(']', '')
+
+                    file_lines = file_text.split('},')
+
+                    for i in file_lines:
+
+                        data = json.loads(i, object_hook=lambda d: SimpleNamespace(**d))
+                        results.append(Message(data.key, data.value, data.ts))
+            
+            except Exception as e:
+                print("Something went wrong")
+        
+        return results
 
 
-    def get_message_from_file(self, path):
-        try:
-            with open(path) as file:
-                file_text = file.read().replace('\n', '').replace(' ', '').replace('}{', '},{').replace('},', '}},')
+class SinkFactory:
 
-                if file_text[0] == '[' and file_text[len(file_text)- 1] == ']':
-                    file_text = file_text.replace('[', '').replace(']', '')
+    messages = []
 
-                file_lines = file_text.split('},')
+    def load_messages(self, msgs):
+        for i in msgs:
+            self.messages.append(i)
 
-                for i in file_lines:
+    def sink(self, sink_type):
+        if sink_type == 'Console':
+            for msg in self.messages:
+                print(msg.to_json().center(25))
+            return True
 
-                    data = json.loads(i, object_hook=lambda d: SimpleNamespace(**d))
-                    message = Message(data.key, data.value, data.ts)
-                    self.messages.append(message)
-        except Exception as e:
-            print("No such file found")
+        elif sink_type == 'Posgress':
+            '''
+            try:
+                with psycopg2.connect(
+                    database = db_name, 
+                    user = user, 
+                    password = password,
+                    host=host,
+                    port= port) as conn:
+
+                    with conn.cursor() as cursor:
+                        postgres_insert_query = """ INSERT INTO Messsages (KEY, VALUE, TS) VALUES (%s,%s,%s)"""
+                        for msg in self.messages:
+                            record_to_insert = (msg.key, msg.value, msg.ts)
+                            cursor.execute(postgres_insert_query, record_to_insert)
+                        conn.commit()
+                        return True
+                        
+            except Exception as e:
+                print("something went wrong")
+                return False
+            '''
+            return True
+
+        else:
+            return False
 
 
-    def send_message_to_console(self):
-        ConsoleDataSinkFactory.post_data(ConsoleDataSinkFactory(), self.messages)
+srcf = SourceFactory()
+sinkf = SinkFactory()
 
-    def send_message_to_postgresql(self):
-        PosgreDataSinkFactory.post_data(PosgreDataSinkFactory(), self.messages)        
+sinkf.load_messages(srcf.get_source('Simulation'))
+sinkf.load_messages(srcf.get_source('File'))
 
-
-test = MessageManager()
-
-test.get_random_message(1)
-test.get_message_from_file(Path("C:/Users/martin.vasilev/Downloads/Python Course/git repo/scripts/lesson 150/test_json.json"))
-test.get_random_message(2)
-test.send_message_to_console()
+if sinkf.sink('Console'):
+    print("Success")
