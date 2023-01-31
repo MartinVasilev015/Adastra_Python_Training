@@ -1,21 +1,10 @@
-'''
--You are creating a pseudo-ETL system, which needs to be able to retrieve data from various sources and transmit the data 
-    to various sinks. By data, in this case, we mean short json messages with predefined structure. 
-    Here is an example: {"key": "A123", "value":"15.6", "ts":'2020-10-07 13:28:43.399620+02:00'} 
--You need to implement at least the following functionality: 
-    -Data source is Simulation: this source will generate random data. 
-    -Data source is File: the messages are read from an input file which contains a json array of messages. 
-    -Data sink is Console: the consumed messages are printed to stdout. 
-    -Data sink is PostgreSQL: the consumed messages are inserted in a database table in PostgreSQL 
--Messages should be read and transmitted one by one until the source has no more messages. 
--The Simulation source is infinite - it should always have a new message, if asked. 
--The File source is finite, it ends when the whole file is read. 
-'''
+from abc import ABC, abstractmethod
 import datetime
 import json
 import random
 import string
 from types import SimpleNamespace
+
 
 class Message:
 
@@ -37,70 +26,99 @@ class Message:
         }
         return json.dumps(x)
 
+#region DataSource
+class DataSource(ABC):  
+    @abstractmethod
+    def sourcemsg():
+        pass
 
-class SourceFactory:
 
-    def get_source(self, source_type):
+class RandomDataSource(DataSource):
+    def sourcemsg():
+
         results = []
 
-        if source_type == 'Simulation':
+        msg_num = random.randint(1, 5)
 
-            msg_num = random.randint(1, 5)
+        for i in range(msg_num):
+            characters = string.ascii_letters + string.digits
 
-            for i in range(msg_num):
-                characters = string.ascii_letters + string.digits
+            upper_limit = random.randint(15, 20)
 
-                upper_limit = random.randint(15, 20)
+            key = ''.join(random.choice(characters) for j in range(upper_limit))
 
-                key = ''.join(random.choice(characters) for j in range(upper_limit))
+            value = round(random.uniform(0, 100), 2)
 
-                value = round(random.uniform(0, 100), 2)
+            ts = datetime.datetime.now()
 
-                ts = datetime.datetime.now()
-
-                results.append(Message(key, value, ts))
-
-        elif source_type == 'File':
-            try:
-                print("Enter Path:")
-
-                path = input().replace('\\', '/')
-
-                with open(path) as file:
-                    file_text = file.read().replace('\n', '').replace(' ', '').replace('}{', '},{').replace('},', '}},')
-
-                    if file_text[0] == '[' and file_text[len(file_text)- 1] == ']':
-                        file_text = file_text.replace('[', '').replace(']', '')
-
-                    file_lines = file_text.split('},')
-
-                    for i in file_lines:
-
-                        data = json.loads(i, object_hook=lambda d: SimpleNamespace(**d))
-                        results.append(Message(data.key, data.value, data.ts))
-            
-            except Exception as e:
-                print("Something went wrong")
+            results.append(Message(key, value, ts))
         
         return results
 
 
-class SinkFactory:
+class FileDataSource(DataSource):
+    def sourcemsg():
 
-    messages = []
+        results = []
 
-    def load_messages(self, msgs):
-        for i in msgs:
-            self.messages.append(i)
+        try:
+            print("Enter Path:")
 
-    def sink(self, sink_type):
-        if sink_type == 'Console':
-            for msg in self.messages:
-                print(msg.to_json().center(25))
-            return True
+            path = input().replace('\\', '/')
 
-        elif sink_type == 'Posgress':
-            '''
+            with open(path) as file:
+                file_text = file.read().replace('\n', '').replace(' ', '').replace('}{', '},{').replace('},', '}},')
+
+                if file_text[0] == '[' and file_text[len(file_text)- 1] == ']':
+                    file_text = file_text.replace('[', '').replace(']', '')
+
+                file_lines = file_text.split('},')
+
+                for i in file_lines:
+                    data = json.loads(i, object_hook=lambda d: SimpleNamespace(**d))
+                    results.append(Message(data.key, data.value, data.ts))
+            
+        except Exception as e:
+            print("Something went wrong")
+        
+        return results
+
+
+class SourceFactory:
+
+    def get_source(self, type):
+
+        dataSource = DataSource
+
+        match type:
+            case 'Simulation':
+                dataSource = RandomDataSource
+            case 'File':
+                dataSource = FileDataSource
+            case _:
+                pass
+        
+        return dataSource
+#endregion
+
+
+#region DataSink
+class DataSink(ABC): 
+    @abstractmethod
+    def sinkmsg(self, lst):
+        pass
+
+
+class ConsoleDataSink(DataSink):
+    def sinkmsg(lst: list):
+        for msg in lst:
+            print(msg.to_json().center(25))
+        return True
+       
+
+class PosgressDataSink(DataSink):
+    def sinkmsg(lst: list):
+        '''
             try:
                 with psycopg2.connect(
                     database = db_name, 
@@ -111,7 +129,7 @@ class SinkFactory:
 
                     with conn.cursor() as cursor:
                         postgres_insert_query = """ INSERT INTO Messsages (KEY, VALUE, TS) VALUES (%s,%s,%s)"""
-                        for msg in self.messages:
+                        for msg in lst:
                             record_to_insert = (msg.key, msg.value, msg.ts)
                             cursor.execute(postgres_insert_query, record_to_insert)
                         conn.commit()
@@ -121,17 +139,32 @@ class SinkFactory:
                 print("something went wrong")
                 return False
             '''
-            return True
-
-        else:
-            return False
+        return True
 
 
-srcf = SourceFactory()
+class SinkFactory:
+
+    def get_sink(self, type):
+
+        dataSink = DataSink
+
+        match type:
+            case 'Console':
+                dataSink = ConsoleDataSink
+            case 'Posgress':
+                dataSink = PosgressDataSink
+            case _:
+                pass
+        
+        return dataSink
+#endregion
+
+
+srcf = SourceFactory() 
+srcinstance = srcf.get_source('Simulation')
+#srcinstance = srcf.get_source('File')
+
 sinkf = SinkFactory()
+sinkinstance = sinkf.get_sink('Console')
 
-sinkf.load_messages(srcf.get_source('Simulation'))
-sinkf.load_messages(srcf.get_source('File'))
-
-if sinkf.sink('Console'):
-    print("Success")
+sinkinstance.sinkmsg(srcinstance.sourcemsg())
